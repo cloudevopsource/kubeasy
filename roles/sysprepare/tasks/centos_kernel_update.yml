@@ -1,0 +1,58 @@
+
+# 获取内核版本号
+- name: 转换内核版本为浮点数
+  set_fact:
+     KERNEL_VER: "{{ ansible_kernel.split('-')[0].split('.')[0]|int + ansible_kernel.split('-')[0].split('.')[1]|int/100 }}"
+
+
+- name: 删除centos/redhat默认内核
+  shell: "yum remove -y {{ item }}"
+  with_items:
+    - kernel-devel*
+    - kernel-tools*
+    - kernel-header*
+    - python-perf*
+    - perf*
+  args:
+      warn: false
+  ignore_errors: true
+  when: "KERNEL_VER|float < 4.19"
+
+
+
+
+# 离线安装kernel_centos7
+- name: 准备离线安装包目录
+  file: name=/packages/centos7 state=directory
+  when: "KERNEL_VER|float < 4.19"
+
+# 分发 kernel_centos7 离线包
+
+- name: 分发 kernel_centos7 离线包
+  copy:
+    src: "{{ ansible_dir }}/download/packages/centos7/kernel_centos7.tar.gz"
+    dest: "/packages/centos7/kernel_centos7.tar.gz"
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 
+  when: 'ansible_distribution_major_version == "7"'
+  when: "KERNEL_VER|float < 4.19"
+
+- name: 安装 kernel_centos7 离线包
+  shell: 'cd /packages/centos7 && tar zxf kernel_centos7.tar.gz && \
+           rpm -Uvh  *.rpm > /tmp/install_basic.log 2>&1'
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 
+  when: 'ansible_distribution_major_version == "7"'
+  when: "KERNEL_VER|float < 4.19"
+
+
+- name: 设置默认启动项
+  shell: 'grub2-set-default 0'
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 
+  when: 'ansible_distribution_major_version == "7"'
+  when: "KERNEL_VER|float < 4.19"
+
+
+- name: 更新grub.cfg
+  shell: 'grub2-mkconfig -o /boot/grub2/grub.cfg'
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 
+  when: 'ansible_distribution_major_version == "7"'
+  when: "KERNEL_VER|float < 4.19"

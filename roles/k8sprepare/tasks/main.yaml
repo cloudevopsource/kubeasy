@@ -1,0 +1,61 @@
+#------向所有master/worker节点分发工具/证书/配置文件
+#准备目录
+- name: ansible deployment host prepare some dirs
+  file: name={{ item }} state=directory
+  with_items:
+  - "{{ k8s_dir }}/bin" # k8s 工作目录
+  - "{{ k8s_config_dir }}/ssl" # k8s 证书目录
+  - "/etc/etcd/ssl"    # etcd 证书目录
+  - "/var/lib/etcd"    # etcd 工作目录
+  - "/root/.kube"
+
+#设置目录权限
+- name: ansible deployment host 本地设置 bin 目录权限
+  file: path={{ k8s_dir }}/bin state=directory mode=0755 recurse=yes
+  file: path={{ k8s_config_dir }}/ssl state=directory mode=0755 recurse=yes
+
+- name: 分发证书工具 CFSSL
+  copy: src={{ ansible_dir }}/bin/{{ item }} dest={{ k8s_dir }}/bin/{{ item }} mode=0755
+  with_items:
+  - cfssl
+  - cfssl-certinfo
+  - cfssljson
+
+- name: 写入环境变量$PATH 
+  lineinfile:
+    dest: ~/.bash_profile
+    state: present
+    regexp: 'export PATH'
+    line: 'export PATH={{ k8s_dir }}/bin:$PATH'
+
+- block:
+    - name: 分发证书相关
+      copy: src={{ ansible_dir }}/ssl/{{ item }} dest={{ ca_dir }}/{{ item }}
+      with_items:
+      - admin.pem
+      - admin-key.pem
+      - ca.pem
+      - ca-key.pem
+      - ca-config.json
+
+    - name: 添加 kubectl 命令自动补全
+      lineinfile:
+        dest: ~/.bashrc
+        state: present
+        regexp: 'kubectl completion'
+        line: 'source <(kubectl completion bash)'
+
+    - name: 分发 kubeconfig配置文件
+      copy: src=/root/.kube/config dest=/root/.kube/config
+
+    - name: 分发 kube-proxy.kubeconfig配置文件
+      copy: src={{ ansible_dir }}/kube-proxy.kubeconfig dest={{ k8s_config_dir }}/kube-proxy.kubeconfig
+      
+    - name: 分发 kube-controller-manager.kubeconfig配置文件
+      copy: src={{ ansible_dir }}/kube-controller-manager.kubeconfig dest={{ k8s_config_dir }}/kube-controller-manager.kubeconfig
+      when: "inventory_hostname in groups['kube-master']"
+      
+    - name: 分发 kube-scheduler.kubeconfig配置文件
+      copy: src={{ ansible_dir }}/kube-scheduler.kubeconfig dest={{ k8s_config_dir }}/kube-scheduler.kubeconfig
+      when: "inventory_hostname in groups['kube-master']"
+  when: "inventory_hostname in groups['kube-master'] or inventory_hostname in groups['kube-node']"

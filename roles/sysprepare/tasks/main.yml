@@ -1,0 +1,27 @@
+# 获取内核版本号
+- name: 转换内核版本为浮点数
+  set_fact:
+     KERNEL_VER: "{{ ansible_kernel.split('-')[0].split('.')[0]|int + ansible_kernel.split('-')[0].split('.')[1]|int/100 }}"
+
+
+
+# 升级内核
+- import_tasks: centos_kernel_update.yml
+  when: 'ansible_distribution in ["CentOS","RedHat"]'
+  when: 'ansible_distribution_major_version == "7"'
+  when: "KERNEL_VER|float < 4.19"
+
+
+# 在线安装系统基础软件环境
+- import_tasks: centos_software_online.yml
+  when: 'ansible_distribution in ["CentOS","RedHat"]'
+  when: 'INSTALL_SOURCE != "offline"'
+
+# 离线安装系统基础软件环境
+- import_tasks: centos_software_offline.yml
+  when: 'ansible_distribution in ["CentOS","RedHat"]'
+  when: 'INSTALL_SOURCE == "offline"'
+
+# 公共系统参数设置
+- import_tasks: centos_k8s_common.yml
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 

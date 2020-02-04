@@ -1,0 +1,50 @@
+# 离线安装 chrony
+- name: 准备离线安装包目录
+  file: name=/packages/centos7 state=directory
+
+
+# 分发 basic_centos7 离线包
+
+- name: 分发 basic_centos7 离线包
+  copy:
+    src: "{{ ansible_dir }}/download/packages/centos7/basic_centos7.tar.gz"
+    dest: "/packages/centos7/basic_centos7.tar.gz"
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 
+  when: 'ansible_distribution_major_version == "7"'
+
+- name: 安装 basic_centos7 离线包
+  shell: 'cd /packages/centos7/ && tar zxf basic_centos7.tar.gz && \
+           rpm -Uvh --force --nodeps *.rpm > /tmp/install_basic.log 2>&1'
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 
+  when: 'ansible_distribution_major_version == "7"'
+#  ignore_errors: true
+
+
+
+
+# 分发 chrony_centos7 离线包
+
+- name: 分发 chrony_centos7 离线包
+  copy:
+    src: "{{ ansible_dir }}/download/packages/centos7/chrony_centos7.tar.gz"
+    dest: "/packages/centos7/chrony_centos7.tar.gz"
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 
+  when: 'ansible_distribution_major_version == "7"'
+
+- name: 安装 chrony_centos7 离线包
+  shell: 'cd /opt/kube/packages && tar zxf chrony_centos7.tar.gz && \
+         rpm -Uvh --force --nodeps *.rpm > /tmp/install_chrony.log 2>&1'
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 
+  when: 'ansible_distribution_major_version == "7"'
+ # ignore_errors: true
+
+
+
+- name: 配置 chrony client
+  template: src=centos_chronyclient.conf.j2 dest=/etc/chrony.conf
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 
+
+
+- name: 启动 chrony client 
+  service: name=chronyd state=restarted enabled=yes
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 

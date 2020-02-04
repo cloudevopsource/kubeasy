@@ -1,0 +1,19 @@
+# 离线安装 haproxy
+- name: 准备离线安装包目录
+  file: name=/opt/kube/packages/haproxy state=directory
+
+
+
+- block:
+  - name: 分发 haproxy_centos7 离线包
+    copy:
+      src: "{{ ansible_dir }}/download/packages/centos7/haproxy_centos7.tar.gz"
+      dest: "/opt/kube/packages/haproxy/haproxy_centos7.tar.gz"
+
+  - name: 安装 haproxy_centos7 离线包
+    shell: 'cd /opt/kube/packages/haproxy && tar zxf haproxy_centos7.tar.gz && \
+           rpm -Uvh --force --nodeps *.rpm > /tmp/install_haproxy.log 2>&1'
+  when:
+  - 'ansible_distribution == "CentOS"'
+  - 'ansible_distribution_major_version == "7"'
+  ignore_errors: true

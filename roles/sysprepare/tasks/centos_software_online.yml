@@ -1,0 +1,58 @@
+- name: 删除centos/redhat默认安装
+  shell: "yum remove -y {{ item }}"
+  with_items:
+    - ntp
+    - firewalld
+    - python-firewall
+    - firewalld-filesystem
+  args:
+      warn: false
+  ignore_errors: true
+
+#- name: 添加EPEL仓库
+#  yum: name=epel-release state=present
+
+#- name: 添加Amazon EPEL仓库
+#  shell: "amazon-linux-extras install epel"
+#  when: ansible_distribution == "Amazon"
+#  ignore_errors: true
+
+- name: 添加EPEL仓库
+  shell: "rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org && yum install -y https://www.elrepo.org/elrepo-release-7.0-4.el7.elrepo.noarch.rpm"
+  args:
+      warn: false
+  ignore_errors: true
+  
+
+
+- name: 安装基础软件包
+  yum: 
+    name:
+      - net-tools
+      - wget
+      - unzip
+      - curl
+      - chrony      
+      - bash-completion     # bash命令补全工具，需要重新登录服务器生效
+      - conntrack-tools     # ipvs 模式需要
+      - ipset               # ipvs 模式需要
+      - ipvsadm             # ipvs 模式需要
+      - libseccomp          # 安装containerd需要
+      - nfs-utils           # 挂载nfs 共享文件需要 (创建基于 nfs的PV 需要)
+      - psmisc              # 安装psmisc 才能使用命令killall，keepalive的监测脚本需要
+      - rsync               # 文件同步工具，分发证书等配置文件需要
+      - socat               # 用于port forwarding
+    state: present
+  when: 'INSTALL_SOURCE == "online"'
+
+
+- name: 配置 chrony client
+  template: src=centos_chronyclient.conf.j2 dest=/etc/chrony.conf
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 
+
+
+- name: 启动 chrony client 
+  service: name=chronyd state=restarted enabled=yes
+  when: 'ansible_distribution in ["CentOS","RedHat"]' 
+  
+  
